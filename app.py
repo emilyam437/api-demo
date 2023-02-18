@@ -98,7 +98,7 @@ def get_age(firstName):
 def get_ads():
     #adsPath = "C:\\Users\\Emily\\Documents\\Codecademy\\projects_js\\SpotifyPlaylistMaker\\04-Industrializacion\\1-Routing_APIs\\ejercicios\\Modelo_Clase\\model\\advertising.sqlite"
     #adsPath = "C:\\Users\\Emily\\Documents\\TheBridge2022\\Copy_Repo\\02-Data_analysis\\My_project\\Project_houses\\HouseDB.sqlite"
-    adsPath = "C:\\Users\\Emily\\Documents\\TheBridge2022\\Copy_Repo\\04-Industrializacion\\1-Routing_APIs\\Solved\\adsDB.sqlite"
+    adsPath = "C:\\Users\\Emily\\Documents\\TheBridge2022\\Copy_Repo\\04-Industrializacion\\1-Routing_APIs\\Solved\\api-demo\\adsDB.sqlite"
     connection = sqlite3.connect(adsPath) 
     cursor = connection.cursor() 
     tables = cursor.execute("""SELECT name FROM sqlite_schema WHERE type ='table'""").fetchall()
