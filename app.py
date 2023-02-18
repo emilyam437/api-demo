@@ -94,7 +94,7 @@ def get_age(firstName):
 
 @app.route('/ads/db', methods=['GET'])
 def get_ads():
-    connection = sqlite3.connect(adsPath) 
+    connection = sqlite3.connect(ads_path) 
     cursor = connection.cursor() 
     # tables = cursor.execute("""SELECT name FROM sqlite_schema WHERE type ='table'""").fetchall()
     answer = cursor.execute('SELECT * FROM "ads_train"').fetchall()
