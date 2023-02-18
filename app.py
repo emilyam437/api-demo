@@ -1,11 +1,19 @@
 from flask import Flask, request, jsonify
 import sqlite3
 import requests
+from datetime import datetime
+import sklearn
+import pickle
+import numpy as np
 
 app = Flask(__name__)
 app.config['DEBUG'] = True
 
-db_path = 'C:\\Users\\Emily\\Documents\\Codecademy\\projects_js\\SpotifyPlaylistMaker\\books.db'
+book_path = 'C:\\Users\\Emily\\Documents\\TheBridge2022\\Copy_Repo\\04-Industrializacion\\1-Routing_APIs\\Solved\\api-demo\\books.sqlite'
+ads_path = "C:\\Users\\Emily\\Documents\\TheBridge2022\\Copy_Repo\\04-Industrializacion\\1-Routing_APIs\\Solved\\api-demo\\adsDB.sqlite"
+model_path = "C:\\Users\\Emily\\Documents\\TheBridge2022\\Copy_Repo\\04-Industrializacion\\1-Routing_APIs\\Solved\\api-demo\\advertising.model"
+
+model = pickle.load(open(model_path, 'rb'))
 
 books = [ 
             {'id': 0, 
@@ -36,34 +44,28 @@ def home():
 @app.route('/api/v1/resources/books/all', methods=['GET']) 
 def api_all():
     return jsonify(books)
-    #return books
 
 # GET ?id=x -> Display the book with specified id
 @app.route('/api/v1/resources/books', methods=['GET']) 
 def api_id():
-
     if request.method == 'GET':
         if 'id' in request.args: 
             id = int(request.args['id']) 
         else: 
             return "Error: No id field provided. Please specify an id." 
-    
         results = [] 
         for book in books: 
             if book['id'] == id: 
                 results.append(book) 
-    
         return jsonify(results)
     
 @app.route('/api/v1/resources/books/<string:title>', methods=['GET'])
 def get_by_title(title):
-    results = []
     for book in books:
         if book['title'] == title:
             return jsonify(book)
     return jsonify({'message': 'Book not found'})
 
-# POST {id:, title:, author:, fist_sentence:, published:} -> Create this book
 @app.route('/api/v2/resources/books', methods=['POST']) 
 def post_book():
     data = request.get_json() 
@@ -72,20 +74,16 @@ def post_book():
 
 @app.route('/api/v1/resources/books/sql/all', methods=['GET']) 
 def get_all(): 
-    # connection = sqlite3.connect('books.db') 
-    connection = sqlite3.connect(db_path)
+    connection = sqlite3.connect(book_path)
     cursor = connection.cursor() 
-    cursor.execute(''' CREATE TABLE IF NOT EXISTS testing (column_1 integer PRIMARY KEY, column_2 text )''')
-    cursor.execute(''' INSERT INTO testing (column_1, column_2) VALUES (3, "This is cool")''')
-    tables = cursor.execute("""SELECT name FROM sqlite_schema WHERE type ='table'""").fetchall()
     try:
         select_books = "SELECT * FROM books" 
         result = cursor.execute(select_books).fetchall() 
         connection.close() 
- 
         return jsonify({'books': result})  
-    except:
-        return cursor.execute('''select * from testing''').fetchall() 
+    except Exception as e:
+        print(e)
+        return 'oops'
 
 @app.route('/age/finder/<firstName>', methods=['GET'])
 def get_age(firstName):
@@ -96,12 +94,9 @@ def get_age(firstName):
 
 @app.route('/ads/db', methods=['GET'])
 def get_ads():
-    #adsPath = "C:\\Users\\Emily\\Documents\\Codecademy\\projects_js\\SpotifyPlaylistMaker\\04-Industrializacion\\1-Routing_APIs\\ejercicios\\Modelo_Clase\\model\\advertising.sqlite"
-    #adsPath = "C:\\Users\\Emily\\Documents\\TheBridge2022\\Copy_Repo\\02-Data_analysis\\My_project\\Project_houses\\HouseDB.sqlite"
-    adsPath = "C:\\Users\\Emily\\Documents\\TheBridge2022\\Copy_Repo\\04-Industrializacion\\1-Routing_APIs\\Solved\\api-demo\\adsDB.sqlite"
     connection = sqlite3.connect(adsPath) 
     cursor = connection.cursor() 
-    tables = cursor.execute("""SELECT name FROM sqlite_schema WHERE type ='table'""").fetchall()
+    # tables = cursor.execute("""SELECT name FROM sqlite_schema WHERE type ='table'""").fetchall()
     answer = cursor.execute('SELECT * FROM "ads_train"').fetchall()
     connection.close()
     return answer
@@ -109,5 +104,49 @@ def get_ads():
 @app.route('/predict-message', methods=['GET'])
 def pred_msg():
     return "I will make a sales prediction!"
+
+@app.route('/check-model', methods=['GET'])
+def check_model():
+    try: 
+        pred = model.predict([[23.8,35.1,65.9]])[0]
+        pred = str(pred)
+        #coefs = model.coef_
+        return pred
+    except Exception as e:
+        print(e)
+        return 'model not found'
+
+@app.route('/predict-from-model', methods=['POST'])
+def get_predict():
+    result = []
+    # Get current time for the PREDICTIONS table
+    str_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    conn = sqlite3.connect(ads_path)
+    crs = conn.cursor()
+    data = request.get_json()
+    result.append(data) 
+    tv = data.get("TV",0)
+    radio = data.get("radio",0)
+    newspaper = data.get("newspaper",0)
+
+    # Model prediction
+    pred = model.predict(np.array([[tv, radio, newspaper]]))[0]
+    print(pred)
+    # Save prediction in PREDICTIONS table
+    crs.execute(''' INSERT INTO predictions(pred_date,TV,radio,newspaper,prediction)
+                    VALUES(?,?,?,?,?) ''', (str_time, tv, radio, newspaper, pred))
+    conn.commit()
+    conn.close()
+    return str(pred), 200
+
+@app.route('/review_predicts', methods=['GET'])
+def return_predicts():
+    conn = sqlite3.connect(ads_path)
+    crs = conn.cursor()
+    query = "SELECT * FROM PREDICTIONS"
+    resultado = jsonify(crs.execute(query).fetchall())
+
+    conn.close()
+    return resultado, 200
 
 app.run(port=5000)
